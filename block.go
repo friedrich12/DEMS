@@ -3,6 +3,8 @@ package main
 import (
 	"time"
 	"encoding/gob"
+	"encoding"
+	"bytes"
 )
 
 type Block struct {
@@ -21,8 +23,28 @@ type Block struct {
 	b.Hash = hash[:]
 }*/
 
+
+// Serialization Encode The Block
+// Needed because BlotDB only used byte
+// arrays
 func (b *Block) Serialize() []byte {
 	var result bytes.Buffer
+	encoder := gob.NewEncoder(&result)
+
+	err := encoder.Encode(b)
+
+	return result.Bytes()
+}
+
+// Decode the Block
+func DeserializeBlock(d []byte) *Block {
+	var block Block
+
+	decoder := gob.NewDecoder(bytes.NewReader(d))
+	
+	err := decoder.Decode(&block)
+
+	return &block
 }
 
 func NewBlock(data string, prevBlockHash []byte) *Block {
