@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/boltdb/bolt"
-	"fmt"
+	"log"
 )
 
 
@@ -29,12 +29,14 @@ func (bc *Blockchain) AddBlock(data string) {
 
 		return nil
 	})
+	if err != nil {log.Panic(err)}
 
 	newBlock := NewBlock(data, lasthash)
 
 	err = bc.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
 		err := b.Put(newBlock.Hash, newBlock.Serialize())
+		if err != nil {log.Panic(err)}
 		err = b.Put([]byte("1"),newBlock.Hash)
 		bc.tip = newBlock.Hash
 		return nil
@@ -61,7 +63,7 @@ func (i *BlockchainIterator) Next() *Block {
 
 		return nil
 	})
-
+	if err != nil {log.Panic(err)}
 	i.currenthash = block.PrevBlockHash
 
 	return block
@@ -77,6 +79,7 @@ func NewBlockchain() *Blockchain {
 		if b == nil {
 			genesis := NewGenesisBlock()
 			b, err := tx.CreateBucket([]byte(blocksBucket))
+			if err != nil {log.Panic(err)}
 			err = b.Put(genesis.Hash, genesis.Serialize())
 			err = b.Put([]byte("1"), genesis.Hash)
 			tip = genesis.Hash
@@ -85,6 +88,11 @@ func NewBlockchain() *Blockchain {
 		}
 		return nil
 	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
 	bc := Blockchain{tip, db}
 	return &bc
 }

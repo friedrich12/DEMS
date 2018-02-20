@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 )
 
 func main() {
+	fmt.Print("DEMS Blockchain Started")
 	bc := NewBlockchain()
 
 	defer bc.db.Close()

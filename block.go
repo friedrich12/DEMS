@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 	"encoding/gob"
-	"encoding"
 	"bytes"
+	"log"
 )
 
 type Block struct {
@@ -32,6 +32,7 @@ func (b *Block) Serialize() []byte {
 	encoder := gob.NewEncoder(&result)
 
 	err := encoder.Encode(b)
+	if err != nil {log.Panic(err)}
 
 	return result.Bytes()
 }
@@ -43,6 +44,7 @@ func DeserializeBlock(d []byte) *Block {
 	decoder := gob.NewDecoder(bytes.NewReader(d))
 	
 	err := decoder.Decode(&block)
+	if err != nil {log.Panic(err)}
 
 	return &block
 }

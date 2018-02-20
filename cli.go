@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
+	"log"
 )
 
 type CLI struct {
@@ -30,8 +30,10 @@ func (cli *CLI) Run(){
 	switch os.Args[1] {
 	case "addblock":
 		err := addBlockCmd.Parse(os.Args[2:])
+		if err != nil {log.Panic(err)}
 	case "printchain":
 		err := printChainCmd.Parse(os.Args[2:])
+		if err != nil {log.Panic(err)}
 	default:
 		//cli.printUsage()
 		os.Exit(1)
