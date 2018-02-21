@@ -14,7 +14,7 @@ import (
 // The bigger I make the difference
 // The harder it is to compute the hash
 
-const targetBits = 25
+const targetBits = 24
 const maxNonce = math.MaxInt64
 
 func IntToHex(num int64) []byte {
@@ -48,7 +48,7 @@ func (pow *ProofOfWork) prepareData(nonce int) []byte{
 	data := bytes.Join(
 		[][]byte{
 			pow.block.PrevBlockHash,
-			pow.block.Data,
+			pow.block.HashTransactions(),
 			IntToHex(pow.block.Timestamp),
 			IntToHex(int64(targetBits)),
 			IntToHex(int64(nonce)),
@@ -66,8 +66,7 @@ func (pow *ProofOfWork) Run() (int, []byte){
 	var hash [32]byte
 	nonce := 0
 
-	fmt.Printf("Mining the block containing \"%s\"\n",
-		pow.block.Data)
+	fmt.Printf("Mining a new block")
 	// Brute-force until we find a valid hash
 	for nonce < maxNonce {
 		data := pow.prepareData(nonce)
