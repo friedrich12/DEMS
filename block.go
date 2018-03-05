@@ -1,59 +1,25 @@
 package main
 
 import (
-	"time"
-	"encoding/gob"
-	"crypto/sha256"
 	"bytes"
+	"encoding/gob"
 	"log"
+	"time"
 )
 
+// Block represents a block in the blockchain
 type Block struct {
-		Timestamp	 	int64   		// Current Timestamp
-		Transactions	[]*Transaction	// Information
-		PrevBlockHash 	[]byte			// Hash of the previous block
-		Hash 		 	[]byte	
-		Nonce			int				// Required to verfity the proof
+	Timestamp     int64
+	Transactions  []*Transaction
+	PrevBlockHash []byte
+	Hash          []byte
+	Nonce         int // Counter for proof of work
+	Height        int // Height of the blockchain
 }
 
-/*func (b *Block) SetHash(){
-	timestamp := []byte(strconv.FormatInt(b.Timestamp,10))
-	headers := bytes.Join([][]byte{b.PrevBlockHash, b.Data, timestamp}, []byte{})
-	hash := sha256.Sum256(headers)
-
-	b.Hash = hash[:]
-}*/
-
-
-// Serialization Encode The Block
-// Needed because BlotDB only used byte
-// arrays
-func (b *Block) Serialize() []byte {
-	var result bytes.Buffer
-	encoder := gob.NewEncoder(&result)
-
-	err := encoder.Encode(b)
-	if err != nil {log.Panic(err)}
-
-	return result.Bytes()
-}
-
-// Decode the Block
-func DeserializeBlock(d []byte) *Block {
-	var block Block
-
-	decoder := gob.NewDecoder(bytes.NewReader(d))
-	
-	err := decoder.Decode(&block)
-	if err != nil {log.Panic(err)}
-
-	return &block
-}
-// Create and mine a new block
-func NewBlock(trans []*Transaction, prevBlockHash []byte) *Block {
-	block := &Block{time.Now().Unix(), trans,
-	prevBlockHash, []byte{}, 0}
-
+// NewBlock creates and returns Block
+func NewBlock(transactions []*Transaction, prevBlockHash []byte, height int) *Block {
+	block := &Block{time.Now().Unix(), transactions, prevBlockHash, []byte{}, 0, height}
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
 
@@ -63,21 +29,45 @@ func NewBlock(trans []*Transaction, prevBlockHash []byte) *Block {
 	return block
 }
 
-// Return a hash of the transaction in the block
-// Transactions in a block will be uniquely identified by 
-// a single hash
-func (b *Block) HashTransactions() []byte {
-	var txHashes [][]byte
-	var txHash [32]byte
-
-	for _, tx := range b.Transactions {
-		txHashes = append(txHashes, tx.ID)
-	}
-	txHash = sha256.Sum256(bytes.Join(txHashes,[]byte{}))
-
-	return txHash[:]
+// NewGenesisBlock creates and returns genesis Block
+func NewGenesisBlock(coinbase *Transaction) *Block {
+	return NewBlock([]*Transaction{coinbase}, []byte{}, 0)
 }
 
-func NewGenesisBlock(coinbase *Transaction) *Block {
-	return NewBlock([]*Transaction{coinbase}, []byte{})
+// HashTransactions returns a hash of the transactions in the block
+func (b *Block) HashTransactions() []byte {
+	var transactions [][]byte
+
+	for _, tx := range b.Transactions {
+		transactions = append(transactions, tx.Serialize())
+	}
+	mTree := NewMerkleTree(tran - sactions)
+
+	return mTree.RootNode.Data
+}
+
+// Serialize serializes the block
+func (b *Block) Serialize() []byte {
+	var result bytes.Buffer
+	encoder := gob.NewEncoder(&result)
+
+	err := encoder.Encode(b)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return result.Bytes()
+}
+
+// DeserializeBlock deserializes a block
+func DeserializeBlock(d []byte) *Block {
+	var block Block
+
+	decoder := gob.NewDecoder(bytes.NewReader(d))
+	err := decoder.Decode(&block)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return &block
 }
