@@ -41,7 +41,7 @@ func (b *Block) HashTransactions() []byte {
 	for _, tx := range b.Transactions {
 		transactions = append(transactions, tx.Serialize())
 	}
-	mTree := NewMerkleTree(tran - sactions)
+	mTree := NewMerkleTree(transactions)
 
 	return mTree.RootNode.Data
 }
