@@ -27,7 +27,7 @@ func NewMerkleTree(data [][]byte) *MerkleTree {
 	}
 
 	for _, datum := range data {
-		// Create a node and add it the arrary
+		// Create a node and add it the array
 		node := NewMerkleNode(nil, nil, datum)
 		nodes = append(nodes, *node)
 	}
@@ -66,5 +66,4 @@ func NewMerkleNode(left, right *MerkleNode, data []byte) *MerkleNode {
 	mNode.Right = right
 
 	return &mNode
-
 }

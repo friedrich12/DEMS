@@ -17,6 +17,7 @@ const blocksBucket = "blocks"
 const genesisCoinbaseData = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
 
 // Blockchain implements interactions with a DB
+//  Tip is the last block hash stored in the DB
 type Blockchain struct {
 	tip []byte
 	db  *bolt.DB
@@ -103,6 +104,7 @@ func (bc *Blockchain) AddBlock(block *Block) {
 		b := tx.Bucket([]byte(blocksBucket))
 		blockInDb := b.Get(block.Hash)
 
+		// The block is already in
 		if blockInDb != nil {
 			return nil
 		}
@@ -122,6 +124,7 @@ func (bc *Blockchain) AddBlock(block *Block) {
 			if err != nil {
 				log.Panic(err)
 			}
+			// Update the last block stored in the chain
 			bc.tip = block.Hash
 		}
 
@@ -301,6 +304,7 @@ func (bc *Blockchain) MineBlock(transactions []*Transaction) *Block {
 			log.Panic(err)
 		}
 
+		// Update the last block
 		err = b.Put([]byte("l"), newBlock.Hash)
 		if err != nil {
 			log.Panic(err)
