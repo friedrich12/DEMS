@@ -16,10 +16,12 @@ var (
 )
 
 type user struct {
-	username   string
-	addr       string
-	privateKey *rsa.PrivateKey
-	hash       hash.Hash
+	username      string
+	addr          string
+	privateKey    *rsa.PrivateKey
+	hash          hash.Hash
+	mixprivateKey *rsa.PrivateKey
+	mixhash       hash.Hash
 }
 
 type message struct {
@@ -31,11 +33,13 @@ type message struct {
 //NewUser ... Creates a new user
 func NewUser(username string, addr string) user {
 	h := sha1.New()
+	m1 := sha1.New()
+	mixpriv, err := rsa.GenerateKey(rand.Reader, size)
 	priv, err := rsa.GenerateKey(rand.Reader, size)
 	if err != nil {
 		fmt.Println("Failed to gnerate keys")
 	}
-	return user{username, addr, priv, h}
+	return user{username, addr, priv, h, mixpriv, m1}
 }
 
 func (u user) Encrypt(mess message) []byte {
@@ -65,10 +69,10 @@ func (u user) GetPublicKey() *rsa.PublicKey {
 	return &u.privateKey.PublicKey
 }
 
-func (u user) GetAddr() string {
-	return u.addr
+func (u user) GetMixPublicKey() *rsa.PublicKey {
+	return &u.mixprivateKey.PublicKey
 }
 
-func (u user) NewMessage() {
-
+func (u user) GetAddr() string {
+	return u.addr
 }

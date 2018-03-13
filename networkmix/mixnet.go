@@ -11,6 +11,7 @@ import (
 	"crypto/rsa"
 
 	mx "github.com/friedrich12/DEMS/mixnet"
+	s "github.com/friedrich12/DEMS/secure"
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -22,9 +23,7 @@ type node struct {
 	// Name string
 	Addr string
 
-	privKey rsa.PrivateKey
-	pubKey  rsa.PublicKey
-
+	privKey *rsa.PrivateKey
 	// Consul related variables
 	SDAddress string
 	SDKV      api.KV
@@ -33,9 +32,31 @@ type node struct {
 	Mixers map[string]mx.MixnetClient
 }
 
-// implementation of send request for mixnet
-func (n *node) SendRequest(ctx context.Context, in *mx.Request) (*mx.Response, error) {
-	// Ask for the public key of a mixer
+// SayHello implements helloworld.GreeterServer
+func (n *node) RequestMix(ctx context.Context, in *mx.Request) (*mx.Response, error) {
+	/*
+		    The request message containing the user's name.
+			message Request {
+		  		string command = 1;
+		  		string toAddr = 2;
+		  		bytes enmessage = 3;
+			}
+
+			message Response {
+		  		string response = 1;
+		  		bytes publicKey = 2;
+			}
+	*/
+	//return &hs.HelloReply{Message: "Hello from " + n.Name}, nil
+	switch in.Command {
+	case "mix":
+		fmt.Println("one")
+	case "help":
+		fmt.Println("Nothing concrete yet")
+	case "other":
+		fmt.Println("Nothing concrete yet")
+	}
+	return nil, s.NewError("Failed")
 }
 
 // Start listening/service.
