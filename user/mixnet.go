@@ -1,4 +1,4 @@
-package main
+package user
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"crypto/rsa"
-
 	mx "github.com/friedrich12/DEMS/mixnet"
 	s "github.com/friedrich12/DEMS/secure"
 	"github.com/hashicorp/consul/api"
@@ -18,58 +16,50 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-type node struct {
-	// Self information
-	// Name string
-	Addr string
-
-	privKey *rsa.PrivateKey
-	// Consul related variables
-	SDAddress string
-	SDKV      api.KV
-
-	// used to make requests
-	Mixers map[string]mx.MixnetClient
-}
-
-// SayHello implements helloworld.GreeterServer
-func (n *node) RequestMix(ctx context.Context, in *mx.Request) (*mx.Response, error) {
+// Remote Procedure Call
+func (n *user) RequestMix(ctx context.Context, in *mx.Request) (*mx.Response, error) {
 	/*
-		    The request message containing the user's name.
-			message Request {
-		  		string command = 1;
-		  		string toAddr = 2;
-		  		bytes enmessage = 3;
-			}
+		The request message containing the user's name.
+				message Request {
+					string command = 1;
+					string fromAddr = 2;
+				  	string fromUser = 3;
+				}
 
-			message Response {
-		  		string response = 1;
-		  		bytes publicKey = 2;
+				message Response {
+					string response = 1;
+					bytes publicKey = 2;
+					bytes hash = 3;
+					bytes mixpublic = 4;
+					bytes mixhash = 5;
 			}
 	*/
-	//return &hs.HelloReply{Message: "Hello from " + n.Name}, nil
+	r := PrepareResponse{response: "Accepted", myaddr: "", pubKey: &n.privateKey.PublicKey, hash: n.hash,
+		pubMixKey: &n.mixprivateKey.PublicKey, mixhash: n.mixhash}
+	ar := PrepareForRequest(r)
 	switch in.Command {
 	case "mix":
-		fmt.Println("one")
+		fmt.Println("Accepted")
+		return &mx.Response{Data: ar}, nil
 	case "help":
 		fmt.Println("Nothing concrete yet")
 	case "other":
 		fmt.Println("Nothing concrete yet")
 	}
-	return nil, s.NewError("Failed")
+	return nil, s.NewError("Failed - Request Denied")
 }
 
 // Start listening/service.
-func (n *node) StartListening() {
+func (n *user) StartListening() {
 
-	lis, err := net.Listen("tcp", n.Addr)
+	lis, err := net.Listen("tcp", n.addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	_n := grpc.NewServer() // n is for serving purpose
 
-	//hs.RegisterHelloServiceServer(_n, n)
+	mx.RegisterMixnetServer(_n, n)
 	// Register reflection service on gRPC server.
 	reflection.Register(_n)
 
@@ -81,9 +71,9 @@ func (n *node) StartListening() {
 
 // Register self with the service discovery module.
 // This implementation simply uses the key-value store.
-// One major drawback is that when nodes crash. nothing is updated on the key-value store.
+// One major drawback is that when users crash. nothing is updated on the key-value store.
 // Services are a better fit and should be used eventually.
-func (n *node) registerService() {
+func (n *user) registerService() {
 	config := api.DefaultConfig()
 	config.Address = n.SDAddress
 	consul, err := api.NewClient(config)
@@ -92,7 +82,7 @@ func (n *node) registerService() {
 	}
 
 	kv := consul.KV()
-	p := &api.KVPair{Key: n.Name, Value: []byte(n.Addr)}
+	p := &api.KVPair{Key: n.username, Value: []byte(n.addr)}
 	_, err = kv.Put(p, nil)
 	if err != nil {
 		log.Panicln("Unable to register with Service Discovery.")
@@ -104,11 +94,11 @@ func (n *node) registerService() {
 	log.Println("Successfully registered with Consul.")
 }
 
-// Start the node.
+// Start the user.
 // This starts listening at the configured address. It also sets up clients for it's peers.
-func (n *node) Start() {
+func (n *user) Start() {
 	// init required variables
-	n.Clients = make(map[string]hs.HelloServiceClient)
+	n.Mixers = make(map[string]mx.MixnetClient)
 
 	// start service / listening
 	go n.StartListening()
@@ -119,7 +109,7 @@ func (n *node) Start() {
 	// start the main loop here
 	// in our case, simply time out for 1 minute and greet all
 
-	// wait for other nodes to come up
+	// wait for other users to come up
 	for {
 		time.Sleep(20 * time.Second)
 		n.GreetAll()
@@ -127,40 +117,40 @@ func (n *node) Start() {
 }
 
 // Setup a new grpc client for contacting the server at addr.
-func (n *node) SetupClient(name string, addr string) {
+func (n *user) SetupClient(name string, addr string) {
 
-	// setup connection with other node
+	// setup connection with other user
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	n.Clients[name] = hs.NewHelloServiceClient(conn)
+	n.Mixers[name] = mx.NewMixnetClient(conn)
 
-	r, err := n.Clients[name].SayHello(context.Background(), &hs.HelloRequest{Name: n.Name})
+	r, err := n.Mixers[name].RequestMix(context.Background(), &mx.Request{Name: n.Name})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
-	log.Printf("Greeting from the other node: %s", r.Message)
+	log.Printf("Greeting from the other user: %s", r.Mixhash)
 
 }
 
 // Busy Work module, greet every new member you find
-func (n *node) GreetAll() {
-	// get all nodes -- inefficient, but this is just an example
+func (n *user) GreetAll() {
+	// get all users -- inefficient, but this is just an example
 	kvpairs, _, err := n.SDKV.List("Node", nil)
 	if err != nil {
 		log.Panicln(err)
 		return
 	}
 
-	// fmt.Println("Found nodes: ")
+	// fmt.Println("Found users: ")
 	for _, kventry := range kvpairs {
-		if strings.Compare(kventry.Key, n.Name) == 0 {
+		if strings.Compare(kventry.Key, n.username) == 0 {
 			// ourself
 			continue
 		}
-		if n.Clients[kventry.Key] == nil {
+		if n.Mixers[kventry.Key] == nil {
 			fmt.Println("New member: ", kventry.Key)
 			// connection not established previously
 			n.SetupClient(kventry.Key, string(kventry.Value))
@@ -169,7 +159,7 @@ func (n *node) GreetAll() {
 }
 
 func main() {
-	// pass the port as an argument and also the port of the other node
+	// pass the port as an argument and also the port of the other user
 	args := os.Args[1:]
 
 	if len(args) < 3 {
@@ -182,8 +172,9 @@ func main() {
 	listenaddr := args[1]
 	sdaddress := args[2]
 
-	noden := node{Name: name, Addr: listenaddr, SDAddress: sdaddress, Clients: nil} // noden is for opeartional purposes
+	usern := NewUser("username", listenaddr)
+	// usern is for opeartional purposes
 
-	// start the node
-	noden.Start()
+	// start the user
+	usern.Start()
 }

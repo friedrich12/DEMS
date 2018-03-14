@@ -8,6 +8,9 @@ import (
 	"hash"
 	"os"
 
+	mx "github.com/friedrich12/DEMS/mixnet"
+
+	"github.com/hashicorp/consul/api"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -17,11 +20,17 @@ var (
 
 type user struct {
 	username      string
+	uid           string
 	addr          string
 	privateKey    *rsa.PrivateKey
 	hash          hash.Hash
 	mixprivateKey *rsa.PrivateKey
 	mixhash       hash.Hash
+
+	SDAddress string
+	SDKV      api.KV
+
+	Mixers map[string]mx.MixnetClient
 }
 
 type message struct {
@@ -39,10 +48,12 @@ func NewUser(username string, addr string) user {
 	if err != nil {
 		fmt.Println("Failed to gnerate keys")
 	}
-	return user{username, addr, priv, h, mixpriv, m1}
+
+	return user{username: username, addr: addr, privateKey: priv, hash: h,
+		mixprivateKey: mixpriv, mixhash: h, SDAddress: "159.89.114.9", Mixers: nil}
 }
 
-func (u user) Encrypt(mess message) []byte {
+func (u user) EncryptM(mess message) []byte {
 	var pub *rsa.PublicKey
 	pub = &u.privateKey.PublicKey
 
@@ -56,7 +67,7 @@ func (u user) Encrypt(mess message) []byte {
 	return enc
 }
 
-func (u user) Decrypt(mess []byte) []byte {
+func (u user) DecryptM(mess []byte) []byte {
 	dec, err := rsa.DecryptOAEP(u.hash, rand.Reader, u.privateKey, mess, nil)
 	if err != nil {
 		fmt.Println(err)

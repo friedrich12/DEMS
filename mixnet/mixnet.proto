@@ -18,11 +18,10 @@ service Mixnet {
 // The request message containing the user's name.
 message Request {
   string command = 1;
-  string toAddr = 2;
-  bytes enmessage = 3;
+  string fromAddr = 2;
+  string fromUser = 3;
 }
 
 message Response {
-  string response = 1;
-  bytes publicKey = 2;
+  bytes data = 1;
 }
