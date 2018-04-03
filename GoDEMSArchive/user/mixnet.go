@@ -25,14 +25,13 @@ func (n *user) RequestMix(ctx context.Context, in *mx.Request) (*mx.Response, er
 					string fromAddr = 2;
 				  	string fromUser = 3;
 				}
-
 				message Response {
 					string response = 1;
-					bytes publicKey = 2;
-					bytes hash = 3;
-					bytes mixpublic = 4;
-					bytes mixhash = 5;
-			}
+					bytes  publicKey = 2;
+					bytes  hash = 3;
+					bytes  mixpublic = 4;
+					bytes  mixhash = 5;
+			    }
 	*/
 	r := PrepareResponse{response: "Accepted", myaddr: "", pubKey: &n.privateKey.PublicKey, hash: n.hash,
 		pubMixKey: &n.mixprivateKey.PublicKey, mixhash: n.mixhash}

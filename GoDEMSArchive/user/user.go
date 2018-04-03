@@ -67,13 +67,15 @@ func (u user) EncryptM(mess message) []byte {
 	return enc
 }
 
-func (u user) DecryptM(mess []byte) []byte {
+func (u user) DecryptM(mess []byte) message {
 	dec, err := rsa.DecryptOAEP(u.hash, rand.Reader, u.privateKey, mess, nil)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	return dec
+	var m message
+	bson.Unmarshal(mess, m)
+	return m
 }
 
 func (u user) GetPublicKey() *rsa.PublicKey {

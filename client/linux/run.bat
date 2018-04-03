@@ -1,0 +1,1 @@
+g++ main.cc -o base -I=/home/professor/Documents/Blockchain/DEMS/src/github.com/friedrich12/DEMS/webrtc  `pkg-config --cflags --libs gtk+-3.0`
