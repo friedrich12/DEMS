@@ -1,46 +1,29 @@
 /*
- * Copyright 2013 University of Chicago
- *  Contact: Bryce Allen
- * Copyright 2013 Collabora Ltd.
- *  Contact: Youness Alaoui
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * Alternatively, the contents of this file may be used under the terms of the
- * the GNU Lesser General Public License Version 2.1 (the "LGPL"), in which
- * case the provisions of LGPL are applicable instead of those above. If you
- * wish to allow use of your version of this file only under the terms of the
- * LGPL and not to allow others to use your version of this file under the
- * MPL, indicate your decision by deleting the provisions above and replace
- * them with the notice and other provisions required by the LGPL. If you do
- * not delete the provisions above, a recipient may use your version of this
- * file under either the MPL or the LGPL.
- */
-
-/*
  * Example using libnice to negotiate a UDP connection between two clients,
  * possibly on the same network or behind different NATs and/or stateful
  * firewalls.
  *
  * Build:
- *   gcc -o threaded-example threaded-example.c `pkg-config --cflags --libs nice`
+ *   gcc -o mixnet mixnet.c `pkg-config --cflags --libs nice`
  *
  * Run two clients, one controlling and one controlled:
- *   threaded-example 0 $(host -4 -t A stun.stunprotocol.org | awk '{ print $4 }')
- *   threaded-example 1 $(host -4 -t A stun.stunprotocol.org | awk '{ print $4 }')
+ *   mixnet 0 $(host -4 -t A stun.stunprotocol.org | awk '{ print $4 }')
+ *   mixnet 1 $(host -4 -t A stun.stunprotocol.org | awk '{ print $4 }')
  */
+
+/*
+  Example: ./mixnet 0 stun.l.google.com [19302]
+  Example: ./mixnet 0 stun.l.google.com [19302]
+
+*/
+
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 #include <agent.h>
 
@@ -59,6 +42,7 @@ static const gchar *candidate_type_name[] = {"host", "srflx", "prflx", "relay"};
 static const gchar *state_name[] = {"disconnected", "gathering", "connecting",
                                     "connected", "ready", "failed"};
 
+// ICE Agent
 static int print_local_data(NiceAgent *agent, guint stream_id,
     guint component_id);
 static int parse_remote_data(NiceAgent *agent, guint stream_id,
@@ -74,18 +58,22 @@ static void cb_component_state_changed(NiceAgent *agent, guint stream_id,
 static void cb_nice_recv(NiceAgent *agent, guint stream_id, guint component_id,
     guint len, gchar *buf, gpointer data);
 
-static void * example_thread(void *data);
+static void * run(void *data);
 
 int
 main(int argc, char *argv[])
 {
-  GThread *gexamplethread;
+  // thread
+  GThread *thread;
 
   // Parse arguments
-  if (argc > 4 || argc < 2 || argv[1][1] != '\0') {
+  if (argc > 4 || argc < 2 || argv[1][1] != NULL) {
     fprintf(stderr, "Usage: %s 0|1 stun_addr [stun_port]\n", argv[0]);
+    printf("To use defualt stun_addr replace with default");
     return EXIT_FAILURE;
   }
+
+  // Parse 0|1
   controlling = argv[1][0] - '0';
   if (controlling != 0 && controlling != 1) {
     fprintf(stderr, "Usage: %s 0|1 stun_addr [stun_port]\n", argv[0]);
@@ -94,40 +82,51 @@ main(int argc, char *argv[])
 
   if (argc > 2) {
     stun_addr = argv[2];
+    if(stun_addr == "default"){
+      stun_addr = "stun.l.google.com";
+    }
     if (argc > 3)
       stun_port = atoi(argv[3]);
     else
-      stun_port = 3478;
+      stun_port = 19302;
 
     g_debug("Using stun server '[%s]:%u'\n", stun_addr, stun_port);
   }
 
+  // Initilize network platforming libraries
   g_networking_init();
 
+  // Main Event Loop of Glib Application
   gloop = g_main_loop_new(NULL, FALSE);
 
   // Run the mainloop and the example thread
   exit_thread = FALSE;
-  gexamplethread = g_thread_new("example thread", &example_thread, NULL);
+  thread = g_thread_new("thread", &run, NULL);
   g_main_loop_run (gloop);
   exit_thread = TRUE;
 
-  g_thread_join (gexamplethread);
+  g_thread_join (thread);
+
+  // Decrease reference count of the loop
+  // If this is zero free the loop and associated memeory
   g_main_loop_unref(gloop);
 
   return EXIT_SUCCESS;
 }
 
 static void *
-example_thread(void *data)
+run(void *data)
 {
   NiceAgent *agent;
   NiceCandidate *local, *remote;
   GIOChannel* io_stdin;
   guint stream_id;
+
+  // Data
   gchar *line = NULL;
   int rval;
 
+// Create IO channel
 #ifdef G_OS_WIN32
   io_stdin = g_io_channel_win32_new_fd(_fileno(stdin));
 #else
@@ -138,8 +137,7 @@ example_thread(void *data)
   // Create the nice agent
   agent = nice_agent_new(g_main_loop_get_context (gloop),
       NICE_COMPATIBILITY_RFC5245);
-  if (agent == NULL)
-    g_error("Failed to create agent");
+  if (agent == NULL){g_error("Failed to create agent");}
 
   // Set the STUN settings and controlling mode
   if (stun_addr) {
@@ -172,6 +170,7 @@ example_thread(void *data)
 
   g_debug("waiting for candidate-gathering-done signal...");
 
+  // Condition Variable
   g_mutex_lock(&gather_mutex);
   while (!exit_thread && !candidate_gathering_done)
     g_cond_wait(&gather_cond, &gather_mutex);
@@ -179,7 +178,8 @@ example_thread(void *data)
   if (exit_thread)
     goto end;
 
-  // Candidate gathering is done. Send our local candidates on stdout
+  // Candidate gathering is done.
+  // TODO: FixThis
   printf("Copy this line to remote client:\n");
   printf("\n  ");
   print_local_data(agent, stream_id, 1);
@@ -308,8 +308,9 @@ cb_nice_recv(NiceAgent *agent, guint stream_id, guint component_id,
 }
 
 static NiceCandidate *
-parse_candidate(char *scand, guint stream_id)
+ parse_candidate(char *scand, guint stream_id)
 {
+  
   NiceCandidate *cand = NULL;
   NiceCandidateType ntype;
   gchar **tokens = NULL;
@@ -322,7 +323,7 @@ parse_candidate(char *scand, guint stream_id)
 
   for (i = 0; i < G_N_ELEMENTS (candidate_type_name); i++) {
     if (strcmp(tokens[4], candidate_type_name[i]) == 0) {
-      ntype = i;
+      ntype = (NiceCandidateType) i;
       break;
     }
   }
@@ -348,15 +349,14 @@ parse_candidate(char *scand, guint stream_id)
 
  end:
   g_strfreev(tokens);
-
   return cand;
 }
 
 
-static int
+char*
 print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
 {
-  int result = EXIT_FAILURE;
+  char* data = NULL;
   gchar *local_ufrag = NULL;
   gchar *local_password = NULL;
   gchar ipaddr[INET6_ADDRSTRLEN];
@@ -370,7 +370,7 @@ print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
   if (cands == NULL)
     goto end;
 
-  printf("%s %s", local_ufrag, local_password);
+  data += local_ufrag; data += local_password
 
   for (item = cands; item; item = item->next) {
     NiceCandidate *c = (NiceCandidate *)item->data;
@@ -378,15 +378,12 @@ print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
     nice_address_to_string(&c->addr, ipaddr);
 
     // (foundation),(prio),(addr),(port),(type)
-    printf(" %s,%u,%s,%u,%s",
-        c->foundation,
-        c->priority,
-        ipaddr,
-        nice_address_get_port(&c->addr),
-        candidate_type_name[c->type]);
+    data += c->foundation;
+    data += utoa(c->priority);
+    data += ipaddr;
+    data += utoa(nice_address_get_port(&c->addr));
+    data += candidate_type_name[c->type];
   }
-  printf("\n");
-  result = EXIT_SUCCESS;
 
  end:
   if (local_ufrag)
@@ -396,7 +393,7 @@ print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
   if (cands)
     g_slist_free_full(cands, (GDestroyNotify)&nice_candidate_free);
 
-  return result;
+  return data;
 }
 
 
