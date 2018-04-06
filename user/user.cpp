@@ -1,9 +1,5 @@
 #include <bits/stdc++.h>
 
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-
 #include "include/crypto.h"
 #include "include/user.h"
 
