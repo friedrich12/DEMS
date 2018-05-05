@@ -1,27 +1,8 @@
-/*
- * Example using libnice to negotiate a UDP connection between two clients,
- * possibly on the same network or behind different NATs and/or stateful
- * firewalls.
- *
- * Build:
- *   gcc -o mixnet mixnet.c `pkg-config --cflags --libs nice`
- *
- * Run two clients, one controlling and one controlled:
- *   mixnet 0 $(host -4 -t A stun.stunprotocol.org | awk '{ print $4 }')
- *   mixnet 1 $(host -4 -t A stun.stunprotocol.org | awk '{ print $4 }')
- */
-
-/*
-  Example: ./mixnet 0 stun.l.google.com [19302]
-  Example: ./mixnet 0 stun.l.google.com [19302]
-
-*/
-
-
-
+#include <functional>
+#include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <string>
 #include <ctype.h>
 #include <stdlib.h>
 
@@ -353,10 +334,10 @@ static NiceCandidate *
 }
 
 
-char*
+static int
 print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
 {
-  char* data = NULL;
+  int result = EXIT_FAILURE;
   gchar *local_ufrag = NULL;
   gchar *local_password = NULL;
   gchar ipaddr[INET6_ADDRSTRLEN];
@@ -370,7 +351,7 @@ print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
   if (cands == NULL)
     goto end;
 
-  data += local_ufrag; data += local_password
+  printf("%s %s", local_ufrag, local_password);
 
   for (item = cands; item; item = item->next) {
     NiceCandidate *c = (NiceCandidate *)item->data;
@@ -378,12 +359,15 @@ print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
     nice_address_to_string(&c->addr, ipaddr);
 
     // (foundation),(prio),(addr),(port),(type)
-    data += c->foundation;
-    data += utoa(c->priority);
-    data += ipaddr;
-    data += utoa(nice_address_get_port(&c->addr));
-    data += candidate_type_name[c->type];
+    printf(" %s,%u,%s,%u,%s",
+        c->foundation,
+        c->priority,
+        ipaddr,
+        nice_address_get_port(&c->addr),
+        candidate_type_name[c->type]);
   }
+  printf("\n");
+  result = EXIT_SUCCESS;
 
  end:
   if (local_ufrag)
@@ -393,7 +377,7 @@ print_local_data (NiceAgent *agent, guint stream_id, guint component_id)
   if (cands)
     g_slist_free_full(cands, (GDestroyNotify)&nice_candidate_free);
 
-  return data;
+  return result;
 }
 
 

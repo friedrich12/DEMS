@@ -1,3 +1,10 @@
 {
-    "go.gopath": "/home/ubuntu/go"
+    "go.gopath": "/home/ubuntu/go",
+    "files.associations": {
+        "array": "cpp",
+        "iterator": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "vector": "cpp"
+    }
 }
