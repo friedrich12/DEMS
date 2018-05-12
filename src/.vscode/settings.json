@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "functional": "cpp",
+        "thread": "cpp",
+        "array": "cpp",
+        "iterator": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "vector": "cpp",
+        "__mutex_base": "cpp",
+        "condition_variable": "cpp",
+        "future": "cpp"
+    }
+}

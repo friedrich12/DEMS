@@ -1,6 +1,10 @@
+#ifndef CRYPTO_H
+#define CRYPTO_H
+
 #include <functional>
 #include <iostream>
 #include <stdlib.h>
+#include <cstdlib>
 #include <stdio.h>
 #include <thread>
 #include <string>
@@ -9,9 +13,8 @@
 #include <condition_variable>
 #include <ctype.h>
 #include <stdlib.h>
-
-#ifndef CRYPTO_H
-#define CRYPTO_H
+#include <agent.h>
+#include <gio/gnetworking.h>
 
 const char *candidate_type_name[] = {"host", "srflx", "prflx", "relay"};
 
@@ -22,17 +25,20 @@ class MixnetServer{
     public:
         MixnetServer();
         ~MixnetServer();
-        std::string get_print_local_data(NiceAgent *agent, guint stream_id,
-    guint component_id) noexcept;
+        std::string get_print_local_data(NiceAgent *agent, guint stream_id,guint component_id) noexcept;
     private:
         void Run();
+        void parse_remote_data(NiceAgent *agent, guint stream_id, guint component_id, char *line);
         std::mutex gather_mutex, negotiate_mutex;
         std::condition_variable gather_cond, negotiate_cond;
         bool exit_thread;
         bool candidate_gathering_done;
+        bool negotiation_done;
         GMainLoop *gloop;
+        // STUN SERVER
         char *stun_addr = NULL;
         uint stun_port;
+        char* local_data;
         bool controlling;
 };
 
