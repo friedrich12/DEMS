@@ -28,7 +28,13 @@ class MixnetServer{
         std::string get_print_local_data(NiceAgent *agent, guint stream_id,guint component_id) noexcept;
     private:
         void Run();
-        void parse_remote_data(NiceAgent *agent, guint stream_id, guint component_id, char *line);
+        int parse_remote_data(NiceAgent *agent, guint stream_id, guint component_id, char *line);
+        static NiceCandidate *MixnetServer::parse_candidate(char *scand, guint stream_id);
+        void cb_new_selected_pair(NiceAgent *agent, guint stream_id,guint component_id,
+         gchar *lfoundation, gchar *rfoundation, gpointer data);
+        void cb_nice_recv(NiceAgent *agent, guint stream_id, guint component_id,guint len, gchar *buf, gpointer data);
+        void cb_component_state_changed(NiceAgent *agent, guint stream_id, guint component_id, guint state, gpointer data);
+        void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id, gpointer data);
         std::mutex gather_mutex, negotiate_mutex;
         std::condition_variable gather_cond, negotiate_cond;
         bool exit_thread;

@@ -36,7 +36,8 @@ MixnetServer::~MixnetServer() {
 }
 
 
-void MixnetServer::Run(){
+void 
+MixnetServer::Run(){
     NiceAgent * agent;
     NiceCandidate * local, * remote;
     GIOChannel * io_stdin;
@@ -107,7 +108,7 @@ void MixnetServer::Run(){
 
     // Fix This!
     while (!this->exit_thread) {
-        rval = parse_remote_data(agent, stream_id, 1, line);
+        rval = this->parse_remote_data(agent, stream_id, 1, line);
         if (rval == EXIT_SUCCESS) {
             std::free(line);
             break;
@@ -164,7 +165,8 @@ void MixnetServer::Run(){
         g_main_loop_quit(gloop);
 }
 
-std::string MixnetServer::print_local_data(NiceAgent *agent, guint stream_id,
+std::string 
+MixnetServer::get_print_local_data(NiceAgent *agent, guint stream_id,
     guint component_id) noexcept{
     std::string result = NULL;
     std::stringstream buffer;
@@ -199,12 +201,165 @@ std::string MixnetServer::print_local_data(NiceAgent *agent, guint stream_id,
     result = EXIT_SUCCESS;
 
     end:
-        if (local_ufrag)
-            std::free(local_ufrag);
+    if (local_ufrag)
+        std::free(local_ufrag);
     if (local_password)
         std::free(local_password);
     if (cands)
         g_slist_free_full(cands, (GDestroyNotify) & nice_candidate_free);
 
     return buffer.str();
+}
+
+static NiceCandidate *
+MixnetServer::parse_candidate(char *scand, guint stream_id)
+{
+  
+  NiceCandidate *cand = NULL;
+  NiceCandidateType ntype;
+  gchar **tokens = NULL;
+  guint i;
+
+  tokens = g_strsplit (scand, ",", 5);
+  for (i = 0; tokens[i]; i++);
+  if (i != 5)
+    goto end;
+
+  for (i = 0; i < G_N_ELEMENTS (candidate_type_name); i++) {
+    if (strcmp(tokens[4], candidate_type_name[i]) == 0) {
+      ntype = (NiceCandidateType) i;
+      break;
+    }
+  }
+  if (i == G_N_ELEMENTS (candidate_type_name))
+    goto end;
+
+  cand = nice_candidate_new(ntype);
+  cand->component_id = 1;
+  cand->stream_id = stream_id;
+  cand->transport = NICE_CANDIDATE_TRANSPORT_UDP;
+  strncpy(cand->foundation, tokens[0], NICE_CANDIDATE_MAX_FOUNDATION);
+  cand->foundation[NICE_CANDIDATE_MAX_FOUNDATION - 1] = 0;
+  cand->priority = atoi (tokens[1]);
+
+  if (!nice_address_set_from_string(&cand->addr, tokens[2])) {
+    g_message("failed to parse addr: %s", tokens[2]);
+    nice_candidate_free(cand);
+    cand = NULL;
+    goto end;
+  }
+
+  nice_address_set_port(&cand->addr, atoi (tokens[3]));
+
+ end:
+  g_strfreev(tokens);
+  return cand;
+}
+
+int
+MixnetServer::parse_remote_data(NiceAgent *agent, guint stream_id, guint component_id, char *line)
+{
+  GSList *remote_candidates = NULL;
+  gchar **line_argv = NULL;
+  const gchar *ufrag = NULL;
+  const gchar *passwd = NULL;
+  int result = EXIT_FAILURE;
+  int i;
+
+  line_argv = g_strsplit_set (line, " \t\n", 0);
+  for (i = 0; line_argv && line_argv[i]; i++) {
+    if (strlen (line_argv[i]) == 0)
+      continue;
+
+    // first two args are remote ufrag and password
+    if (!ufrag) {
+      ufrag = line_argv[i];
+    } else if (!passwd) {
+      passwd = line_argv[i];
+    } else {
+      // Remaining args are serialized canidates (at least one is required)
+      NiceCandidate *c = this->parse_candidate(line_argv[i], stream_id);
+
+      if (c == NULL) {
+        g_message("failed to parse candidate: %s", line_argv[i]);
+        goto end;
+      }
+      remote_candidates = g_slist_prepend(remote_candidates, c);
+    }
+  }
+  if (ufrag == NULL || passwd == NULL || remote_candidates == NULL) {
+    g_message("line must have at least ufrag, password, and one candidate");
+    goto end;
+  }
+
+  if (!nice_agent_set_remote_credentials(agent, stream_id, ufrag, passwd)) {
+    g_message("failed to set remote credentials");
+    goto end;
+  }
+
+  // Note: this will trigger the start of negotiation.
+  if (nice_agent_set_remote_candidates(agent, stream_id, component_id,
+      remote_candidates) < 1) {
+    g_message("failed to set remote candidates");
+    goto end;
+  }
+
+  result = EXIT_SUCCESS;
+
+ end:
+  if (line_argv != NULL)
+    g_strfreev(line_argv);
+  if (remote_candidates != NULL)
+    g_slist_free_full(remote_candidates, (GDestroyNotify)&nice_candidate_free);
+
+  return result;
+}
+void
+MixnetServer::cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
+    gpointer data)
+{
+  g_debug("SIGNAL candidate gathering done\n");
+
+  g_mutex_lock(&gather_mutex);
+  candidate_gathering_done = TRUE;
+  g_cond_signal(&gather_cond);
+  g_mutex_unlock(&gather_mutex);
+}
+
+void
+MixnetServer::cb_component_state_changed(NiceAgent *agent, guint stream_id,
+    guint component_id, guint state,
+    gpointer data)
+{
+  g_debug("SIGNAL: state changed %d %d %s[%d]\n",
+      stream_id, component_id, state_name[state], state);
+
+  if (state == NICE_COMPONENT_STATE_READY) {
+    g_mutex_lock(&negotiate_mutex);
+    negotiation_done = TRUE;
+    g_cond_signal(&negotiate_cond);
+    g_mutex_unlock(&negotiate_mutex);
+  } else if (state == NICE_COMPONENT_STATE_FAILED) {
+    g_main_loop_quit (gloop);
+  }
+}
+
+
+void
+MixnetServer::cb_new_selected_pair(NiceAgent *agent, guint stream_id,
+    guint component_id, gchar *lfoundation,
+    gchar *rfoundation, gpointer data)
+{
+  g_debug("SIGNAL: selected pair %s %s", lfoundation, rfoundation);
+}
+
+void
+MixnetServer::cb_nice_recv(NiceAgent *agent, guint stream_id, guint component_id,
+    guint len, gchar *buf, gpointer data)
+{
+  if (len == 1 && buf[0] == '\0')
+    g_main_loop_quit (gloop);
+
+  printf("%.*s", len, buf);
+  fflush(stdout);
 }

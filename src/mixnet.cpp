@@ -214,7 +214,7 @@ run(void *data)
   printf("\nSend lines to remote (Ctrl-D to quit):\n");
   printf("> ");
   fflush (stdout);
-  while (!exit_thread) {
+  while (!exit_thread) {stream_id
     GIOStatus s = g_io_channel_read_line (io_stdin, &line, NULL, NULL, NULL);
     if (s == G_IO_STATUS_NORMAL) {
       nice_agent_send(agent, stream_id, 1, strlen(line), line);
