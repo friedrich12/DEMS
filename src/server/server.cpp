@@ -4,6 +4,7 @@ MixnetServer::MixnetServer(std::string StunAddress, std::string StunPort) {
     GThread * thread;
 
     
+    // Hard code fallback servers just incase services fail.
     if((StunAddress == NULL) || (StunPort == NULL)){
         this->stun_addr = "stun.l.google.com";
         this->stun_port = 19302;
@@ -33,6 +34,7 @@ MixnetServer::MixnetServer(std::string StunAddress, std::string StunPort) {
 
 MixnetServer::~MixnetServer() {
     // Nothing Here Yet...
+    // Delete allocated dynamic memeory using std::free
 }
 
 
