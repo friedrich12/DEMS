@@ -1,4 +1,1 @@
-language: go
-before_install:
-  - go get github.com/boltdb/bolt/...
-script: ./run.bat
+script: make
