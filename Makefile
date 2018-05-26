@@ -27,11 +27,15 @@ kill:
 
 install: build
 	cp mixnet /usr/bin/mixnet
+	cp tracker /usr/bin/tracker
 	cp include/mixnet.h /usr/include/mixnet.h
+	cp include/mixsig.h /usr/include/mixsig.h
 
 uninstall:
 		rm -rf /usr/bin/mixnet
+		rm -rf /usr/bin/tracker
 		rm -rf /usr/include/mixnet.h
+		rm -rf /usr/include/mixsig.h
 		rm -rf /usr/etc/mixnet
 
 clean: kill

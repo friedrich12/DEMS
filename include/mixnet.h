@@ -52,10 +52,11 @@ struct peer
   RSA *key;
 };
 
+extern int mixer_fd, peeler_fd, tracker_fd;
+extern struct sockaddr tracker_sa;
 
 typedef struct mixchain mixchain;
 typedef struct mix_t mix_t;
-
 
 class Mixnet {
     public:
@@ -115,8 +116,5 @@ class Mixnet {
 
         void symmetric_encrypt(char * plaintext, char * * ciphertext, BF_KEY * key, char * * k, int plen, int * clen);
         void symmetric_decrypt(char * * plaintext, char * ciphertext, BF_KEY * key, int * plen, int clen);
-
-        int mixer_fd, peeler_fd, tracker_fd;
-        struct sockaddr tracker_sa;
 };
 
