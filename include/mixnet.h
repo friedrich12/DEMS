@@ -68,8 +68,8 @@ class Mixnet {
 
         //struct peer;
 
-        Mixnet();
-        ~Mixnet();
+        //Mixnet();
+        //~Mixnet();
 
         void peer_add(struct sockaddr_in from, char * pubkey, int len);
         void peer_remove(struct sockaddr_in from);

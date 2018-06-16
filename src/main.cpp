@@ -1,5 +1,12 @@
 #include <mixnet.h>
-#include <mixsig.h>
+
+
+void handle_sigchild2(int sig)
+{
+  while (waitpid((pid_t)(-1), 0, WNOHANG) > 0) {}
+}
+
+struct sockaddr tracker_sa;
 
 int main(int argc, char **argv)
 {
@@ -7,7 +14,7 @@ int main(int argc, char **argv)
   Mixnet mix;
   if (argc < 2) mix.mn_error("too few arguments");
 
-  if (signal(SIGCHLD,handle_sigchild) == SIG_ERR) mix.mn_error("failed to regester handler for SIGCHLD");
+  if (signal(SIGCHLD,handle_sigchild2) == SIG_ERR) mix.mn_error("failed to regester handler for SIGCHLD");
 
   //hanlde options
   mix.verbose = 0b1;

@@ -10,7 +10,7 @@ void Mixnet::tracker(int fd, struct sockaddr sa)
     size_t sz = sizeof(char)*4096;
     char *buf = (char*)malloc(sz);
     int bytes;
-    bytes = (int)recvfrom(fd,(void*)buf,sz,0,(struct sockaddr *)&from,&salen);
+    bytes = (int)recvfrom(fd,(void*)buf,sz,0,(struct sockaddr *)&from,reinterpret_cast<socklen_t *>(salen));
     if (bytes < 0)
     {
       close(fd);
