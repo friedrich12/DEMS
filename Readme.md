@@ -3,7 +3,7 @@
 ## setup
 
 ````C
-$ git clone https://github.com/tylerpayne/mixnet
+$ git clone https://github.com/DokuEnterprise/mixnet
 $ cd mixnet
 $ sudo -s
 root$ make build
